@@ -6,7 +6,7 @@ import {
   SelectorMatcherOptions,
   MatcherOptions,
 } from '@testing-library/dom'
-import {SelectorsBase} from './wdio-types'
+import { ChainablePromiseArray, ChainablePromiseElement } from 'webdriverio'
 
 export type Queries = typeof queries
 export type QueryName = keyof Queries
@@ -24,16 +24,20 @@ export type WebdriverIOQueryReturnType<Element, ElementArray, T> =
   T extends Promise<HTMLElement>
     ? Element
     : T extends HTMLElement
-    ? Element
-    : T extends Promise<HTMLElement[]>
-    ? ElementArray
-    : T extends HTMLElement[]
-    ? ElementArray
-    : T extends null
-    ? null
-    : never
+      ? Element
+      : T extends Promise<HTMLElement[]>
+        ? ElementArray
+        : T extends HTMLElement[]
+          ? ElementArray
+          : T extends null
+            ? null
+            : never
 
-export type WebdriverIOBoundFunction<Element, ElementArray, T> = (
+export type WebdriverIOBoundFunction<
+  Element extends WebdriverIO.Element,
+  ElementArray extends WebdriverIO.ElementArray,
+  T,
+> = (
   ...params: Parameters<BoundFunctionBase<T>>
 ) => Promise<
   WebdriverIOQueryReturnType<
@@ -43,7 +47,11 @@ export type WebdriverIOBoundFunction<Element, ElementArray, T> = (
   >
 >
 
-export type WebdriverIOBoundFunctionSync<Element, ElementArray, T> = (
+export type WebdriverIOBoundFunctionSync<
+  Element extends ChainablePromiseElement,
+  ElementArray extends ChainablePromiseArray,
+  T,
+> = (
   ...params: Parameters<BoundFunctionBase<T>>
 ) => WebdriverIOQueryReturnType<
   Element,
@@ -54,18 +62,20 @@ export type WebdriverIOBoundFunctionSync<Element, ElementArray, T> = (
 export type WebdriverIOQueries = {
   [P in keyof Queries]: WebdriverIOBoundFunction<
     WebdriverIO.Element,
-    WebdriverIO.Element[],
+    WebdriverIO.ElementArray,
     Queries[P]
   >
 }
 
 export type WebdriverIOQueriesSync = {
   [P in keyof Queries]: WebdriverIOBoundFunctionSync<
-    WebdriverIO.Element,
-    WebdriverIO.Element[],
+    ChainablePromiseElement,
+    ChainablePromiseArray,
     Queries[P]
   >
 }
+
+type SelectorsBase = Pick<WebdriverIO.Element, '$' | '$$'>
 
 export type WebdriverIOQueriesChainable<
   Container extends SelectorsBase | undefined,
@@ -91,8 +101,8 @@ export type SerializedObject = {
   serialized: 'object'
   [key: string]: SerializedArg
 }
-export type SerializedRegExp = {serialized: 'RegExp'; RegExp: string}
-export type SerializedUndefined = {serialized: 'Undefined'; Undefined: true}
+export type SerializedRegExp = { serialized: 'RegExp'; RegExp: string }
+export type SerializedUndefined = { serialized: 'Undefined'; Undefined: true }
 
 export type SerializedArg =
   | SerializedObject

@@ -1,8 +1,10 @@
-import {within, setupBrowser} from '../../src'
+import { within, setupBrowser } from '../src'
+
+declare const browser: WebdriverIO.Browser
 
 describe('within', () => {
   it('scopes queries to element', async () => {
-    const nested = await browser.$('*[data-testid="nested"]')
+    const nested = await browser.$('*[data-testid="nested"]').getElement()
 
     const button = await within(nested).getByText('Button Text')
     await button.click()
@@ -11,7 +13,7 @@ describe('within', () => {
   })
 
   it('works with elements from GetBy query', async () => {
-    const {getByTestId} = setupBrowser(browser)
+    const { getByTestId } = setupBrowser(browser)
     const nested = await getByTestId('nested')
 
     const button = await within(nested).getByText('Button Text')
@@ -21,7 +23,7 @@ describe('within', () => {
   })
 
   it('works with elements from AllBy query', async () => {
-    const {getAllByTestId} = setupBrowser(browser)
+    const { getAllByTestId } = setupBrowser(browser)
 
     const nestedDivs = await getAllByTestId(/nested/)
     expect(nestedDivs).toHaveLength(2)

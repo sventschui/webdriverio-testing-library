@@ -4,8 +4,7 @@ eslint-disable
 @typescript-eslint/no-empty-interface
 */
 
-import {WebdriverIOQueriesChainable, WebdriverIOQueries} from '../../src'
-import {SelectorsBase} from '../../src/wdio-types'
+import { WebdriverIOQueriesChainable, WebdriverIOQueries } from '../src'
 
 declare global {
   namespace WebdriverIO {
@@ -16,9 +15,4 @@ declare global {
       extends WebdriverIOQueries,
         WebdriverIOQueriesChainable<Element> {}
   }
-}
-
-declare module 'webdriverio' {
-  interface ChainablePromiseElement<T extends SelectorsBase | undefined>
-    extends WebdriverIOQueriesChainable<T> {}
 }
