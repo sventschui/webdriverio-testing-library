@@ -13,6 +13,14 @@ describe('configure', () => {
     expect(await getByTestId('image-with-random-alt-tag')).toBeDefined()
   })
 
+  it('supports setting getElementError', async () => {
+    configure({ getElementError: () => new Error(`test`) })
+
+    const { getByTestId } = setupBrowser(browser)
+
+    await expect(getByTestId('not-existing')).rejects.toThrow(`test`)
+  })
+
   it('supports setting asyncUtilTimeout', async () => {
     configure({ asyncUtilTimeout: 3000 })
 

@@ -18,6 +18,7 @@ export type Config = Pick<
   | 'defaultHidden'
   | 'testIdAttribute'
   | 'throwSuggestions'
+  | 'getElementError'
 >
 
 export type WebdriverIOQueryReturnType<Element, ElementArray, T> =
