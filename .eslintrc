@@ -1,5 +1,4 @@
 {
-  "parser": "@typescript-eslint/parser",
   "extends": [
     "./node_modules/kcd-scripts/eslint.js",
     "plugin:import/typescript"
@@ -7,31 +6,21 @@
   "parserOptions": {
     "ecmaVersion": 2018,
     "sourceType": "module",
-    "project": "*/**/tsconfig.json"
-  },
-  "plugins": ["@typescript-eslint"],
-  "ignorePatterns": "wdio.conf.*",
-  "rules": {
-    "babel/new-cap": "off",
-    "func-names": "off",
-    "babel/no-unused-expressions": "off",
-    "prefer-arrow-callback": "off",
-    "testing-library/no-await-sync-query": "off",
-    "testing-library/no-dom-import": "off",
-    "testing-library/prefer-screen-queries": "off",
-    "no-undef": "off",
-    "no-use-before-define": "off",
-    "no-unused-vars": "off",
-    "@typescript-eslint/no-unused-vars": ["error"]
+    "project": "tsconfig.json"
   },
   "overrides": [
     {
-      "files": ["wdio.conf.js", "*/**/*.e2e.*"],
+      "files": ["test/**/*"],
       "rules": {
-        "max-lines-per-function": "off"
+        "max-lines-per-function": "off",
+        // See https://github.com/webdriverio/webdriverio/issues/14552
+        "@typescript-eslint/no-floating-promises": "off"
       },
       "globals": {
         "browser": "readonly"
+      },
+      "parserOptions": {
+        "project": "test/tsconfig.json"
       }
     }
   ]

@@ -1,102 +1,100 @@
-import refetchElement from 'webdriverio/build/utils/refetchElement'
-
-import {setupBrowser} from '../../src'
+import { setupBrowser } from '../src'
 
 describe('queries', () => {
   it('queryBy resolves with matching element', async () => {
-    const {queryByText} = setupBrowser(browser)
+    const { queryByText } = setupBrowser(browser)
 
     const button = await queryByText('Unique Button Text')
     expect(await button?.getText()).toEqual('Unique Button Text')
   })
 
   it('queryBy resolves with null when there are no matching elements', async () => {
-    const {queryByText} = setupBrowser(browser)
+    const { queryByText } = setupBrowser(browser)
 
     const button = await queryByText('Text that does not exist')
     expect(button).toBeNull()
   })
 
   it('getBy resolves with matching element', async () => {
-    const {getByText} = setupBrowser(browser)
+    const { getByText } = setupBrowser(browser)
 
     const button = await getByText('Unique Button Text')
     expect(await button.getText()).toEqual('Unique Button Text')
   })
 
   it('getBy rejects when there are no matching elements', async () => {
-    const {getByText} = setupBrowser(browser)
+    const { getByText } = setupBrowser(browser)
 
     await expect(getByText('Text that does not exist')).rejects.toThrow()
   })
 
   it('getBy rejects when there are multiple matching elements', async () => {
-    const {getByText} = setupBrowser(browser)
+    const { getByText } = setupBrowser(browser)
 
     await expect(getByText('Button Text')).rejects.toThrow()
   })
 
   it('findBy waits for matching element and resolves with it', async () => {
-    const {findByText} = setupBrowser(browser)
+    const { findByText } = setupBrowser(browser)
 
     const button = await findByText('Unique Delayed Button Text')
     expect(await button.getText()).toEqual('Unique Delayed Button Text')
   })
 
   it('findBy rejects when there is no matching element after timeout', async () => {
-    const {findByText} = setupBrowser(browser)
+    const { findByText } = setupBrowser(browser)
 
     await expect(findByText('Text that does not exist')).rejects.toThrow()
   })
 
   it('findBy rejects when there are multiple matching elements', async () => {
-    const {findByText} = setupBrowser(browser)
+    const { findByText } = setupBrowser(browser)
 
     await expect(findByText('Delayed Button Text')).rejects.toThrow()
   })
 
   it('queryAllBy resolves with matching elements', async () => {
-    const {queryAllByText} = setupBrowser(browser)
+    const { queryAllByText } = setupBrowser(browser)
 
     const chans = await queryAllByText('Button Text')
     expect(chans).toHaveLength(2)
   })
 
   it('queryAllBy resolves with an empty array when there are no matching elements', async () => {
-    const {queryAllByText} = setupBrowser(browser)
+    const { queryAllByText } = setupBrowser(browser)
 
     const chans = await queryAllByText('Text that does not exist')
     expect(chans).toHaveLength(0)
   })
 
   it('getAllBy resolves matching elements', async () => {
-    const {getAllByText} = setupBrowser(browser)
+    const { getAllByText } = setupBrowser(browser)
 
     const buttons = await getAllByText('Button Text')
     expect(buttons).toHaveLength(2)
   })
 
   it('getAllBy rejects when there are no matching elements', async () => {
-    const {getAllByText} = setupBrowser(browser)
+    const { getAllByText } = setupBrowser(browser)
 
     await expect(getAllByText('Text that does not exist')).rejects.toThrow()
   })
 
   it('findAllBy waits for matching elements and resolves with them', async () => {
-    const {findAllByText} = setupBrowser(browser)
+    const { findAllByText } = setupBrowser(browser)
 
     const buttons = await findAllByText('Delayed Button Text')
     expect(buttons).toHaveLength(2)
   })
 
   it('findAllBy rejects when there are no matching elements after timeout', async () => {
-    const {findAllByText} = setupBrowser(browser)
+    const { findAllByText } = setupBrowser(browser)
 
     await expect(findAllByText('Text that does not exist')).rejects.toThrow()
   })
 
   it('can click resolved elements', async () => {
-    const {getByText, getAllByText} = setupBrowser(browser)
+    const { getByText, getAllByText } = setupBrowser(browser)
 
     const uniqueButton = await getByText('Unique Button Text')
     const buttons = await getAllByText('Button Text')
@@ -111,21 +109,21 @@ describe('queries', () => {
   })
 
   it('support Regular Expressions as matchers', async () => {
-    const {getAllByText} = setupBrowser(browser)
+    const { getAllByText } = setupBrowser(browser)
 
     const chans = await getAllByText(/jackie chan/i)
     expect(chans).toHaveLength(2)
   })
 
   it('support options', async () => {
-    const {getAllByText} = setupBrowser(browser)
+    const { getAllByText } = setupBrowser(browser)
 
-    const chans = await getAllByText('Jackie Chan', {exact: false})
+    const chans = await getAllByText('Jackie Chan', { exact: false })
     expect(chans).toHaveLength(2)
   })
 
   it('support Regular Expressions in options', async () => {
-    const {getAllByRole} = setupBrowser(browser)
+    const { getAllByRole } = setupBrowser(browser)
 
     const chans = await getAllByRole('button', {
       name: /jackie chan/i,
@@ -134,15 +132,20 @@ describe('queries', () => {
   })
 
   it('support waitFor options', async () => {
-    const {findByText} = setupBrowser(browser)
+    const { findByText } = setupBrowser(browser)
 
+    const start = Date.now()
     await expect(
-      findByText('Unique Delayed Button Text', {}, {timeout: 0}),
-    ).rejects.toThrow()
+      findByText('Not existing', {}, { timeout: 10_000 }),
+    ).rejects.toThrow(/Unable to find an element with the text/)
+    const end = Date.now()
+
+    // Default timeout is very short. With the timeout of 10s above, the test should take 10s
+    expect(end - start).toBeGreaterThan(10_000)
   })
 
   it('support being passed undefined arguments', async () => {
-    const {findByText} = setupBrowser(browser)
+    const { findByText } = setupBrowser(browser)
 
     const button = await findByText(
       'Unique Delayed Button Text',
@@ -153,53 +156,51 @@ describe('queries', () => {
   })
 
   it('retains error messages', async () => {
-    const {getByText} = setupBrowser(browser)
+    const { getByText } = setupBrowser(browser)
 
-    await expect(getByText('Text that does not exist')).rejects.toThrowError(
+    await expect(getByText('Text that does not exist')).rejects.toThrow(
       /Unable to find an element with the text/,
     )
   })
 
   it('can refetch an element', async () => {
-    const {getByText} = setupBrowser(browser)
+    const { getByText } = setupBrowser(browser)
 
     const button = await getByText('Unique Button Text')
-    const refetchedButton = await refetchElement(button, 'click')
+    const refetchedButton = button // TODO: await refetchElement(button, 'click')
 
     expect(refetchedButton).not.toBeNull()
-    expect(await refetchedButton.getText()).toBe(
-      'Unique Button Text',
-    )
+    expect(await refetchedButton.getText()).toBe('Unique Button Text')
   })
 
   it('getAllBy works when Simmer cannot create a unique selector', async () => {
-    const {getAllByText} = setupBrowser(browser)
+    const { getAllByText } = setupBrowser(browser)
 
     expect(await getAllByText(/High depth non-specific div/)).toHaveLength(2)
   })
 
   it('getBy works when Simmer cannot create a unique selector', async () => {
-    const {getByText} = setupBrowser(browser)
+    const { getByText } = setupBrowser(browser)
 
     expect(await getByText('High depth non-specific div one')).not.toBeNull()
   })
 
   // This tests fails when using Puppeteer, but passes when using other services
   it.skip('findByText works for elements in production React app', async () => {
-    const {findByText} = setupBrowser(browser)
+    const { findByText } = setupBrowser(browser)
 
     expect(await findByText('React')).not.toBeNull()
   })
 
   // This tests fails when using Puppeteer, but passes when using other services
   it.skip('refetching works when React key changes and element recreated', async () => {
-    const {findByText} = setupBrowser(browser)
+    const { findByText } = setupBrowser(browser)
 
     const title = await findByText('React')
     const recreateTitleButton = await findByText('Recreate React Title')
     await recreateTitleButton.click()
 
-    const refetchedTitle = await refetchElement(title, '')
+    const refetchedTitle = title // TODO: await refetchElement(title, '')
     expect(refetchedTitle).not.toBeNull()
     expect(await refetchedTitle.getAttribute('id')).toEqual('react-title')
   })

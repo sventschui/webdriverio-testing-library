@@ -1,6 +1,9 @@
-const path = require('path')
+// @ts-check
+import { defineConfig } from '@wdio/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-exports.config = {
+export const config = defineConfig({
   //
   // ====================
   // Runner Configuration
@@ -201,7 +204,7 @@ exports.config = {
    */
   beforeTest: async function () {
     await browser.url(
-      `file:///${path.join(__dirname, './test-app/index.html')}`,
+      `file:///${path.join(import.meta.dirname, './test-app/index.html')}`,
     )
   },
   /**
@@ -272,4 +275,4 @@ exports.config = {
    */
   //onReload: function(oldSessionId, newSessionId) {
   //}
-}
+})

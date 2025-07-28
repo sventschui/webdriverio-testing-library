@@ -1,16 +1,12 @@
-/* eslint-disable no-eval, @babel/new-cap */
-
+/* eslint-disable no-eval, new-cap */
 import path from 'path'
 import fs from 'fs'
 import {
-  Matcher,
   MatcherOptions,
   queries as baseQueries,
   waitForOptions as WaitForOptions,
 } from '@testing-library/dom'
 import 'simmerjs'
-
-import {BaseWithExecute, BrowserBase, ElementBase} from './wdio-types'
 import {
   QueryArg,
   Config,
@@ -46,21 +42,8 @@ const SIMMERJS = fs
 
 let _config: Partial<Config>
 
-function isContainerWithExecute(container: ElementBase | BaseWithExecute): container is BaseWithExecute {
-  return (container as { execute?: unknown }).execute != null;
-}
-
-function findContainerWithExecute(container: ElementBase): BaseWithExecute {
-  let curContainer: ElementBase | BaseWithExecute = container.parent;
-  while (!isContainerWithExecute(curContainer)) {
-    curContainer = curContainer.parent;
-  }
-  return curContainer;
-}
-
-async function injectDOMTestingLibrary(container: ElementBase) {
-  const containerWithExecute = findContainerWithExecute(container);
-  const shouldInject = await containerWithExecute.execute(function () {
+async function injectDOMTestingLibrary(element: WebdriverIO.Element) {
+  const shouldInject = await element.execute(function executeShouldInject() {
     return {
       domTestingLibrary: !window.TestingLibraryDom,
       simmer: !window.Simmer,
@@ -68,7 +51,10 @@ async function injectDOMTestingLibrary(container: ElementBase) {
   })
 
   if (shouldInject.domTestingLibrary) {
-    await containerWithExecute.execute(function (library: string) {
+    await element.execute(function executeInjectTestingLibrary(
+      el: HTMLElement,
+      library: string,
+    ) {
       // add DOM Testing Library to page as a script tag to support Firefox
       if (navigator.userAgent.includes('Firefox')) {
         const script = document.createElement('script')
@@ -82,10 +68,13 @@ async function injectDOMTestingLibrary(container: ElementBase) {
   }
 
   if (shouldInject.simmer) {
-    await containerWithExecute.execute(SIMMERJS)
+    await element.execute(SIMMERJS)
   }
 
-  await containerWithExecute.execute(function (config: Config) {
+  await element.execute(function executeConfigureTestingLibrary(
+    el: HTMLElement,
+    config: Partial<Config>,
+  ) {
     window.TestingLibraryDom.configure(config)
   }, _config)
 }
@@ -96,17 +85,17 @@ function serializeObject(object: ObjectQueryArg): SerializedObject {
       key,
       serializeArg(value),
     ])
-    .reduce((acc, [key, value]) => ({...acc, [key]: value}), {
+    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {
       serialized: 'object',
     })
 }
 
 function serializeArg(arg: QueryArg): SerializedArg {
   if (arg instanceof RegExp) {
-    return {serialized: 'RegExp', RegExp: arg.toString()}
+    return { serialized: 'RegExp', RegExp: arg.toString() }
   }
   if (typeof arg === 'undefined') {
-    return {serialized: 'Undefined', Undefined: true}
+    return { serialized: 'Undefined', Undefined: true }
   }
   if (arg && typeof arg === 'object') {
     return serializeObject(arg)
@@ -115,22 +104,20 @@ function serializeArg(arg: QueryArg): SerializedArg {
 }
 
 type SerializedQueryResult =
-  | {selector: string}[]
+  | { selector: string }[]
   | string
-  | {selector: string}
+  | { selector: string }
   | null
 
-function executeQuery(
-  query: QueryName,
+async function executeQuery(
   container: HTMLElement,
+  query: QueryName,
   ...args: SerializedArg[]
-) {
-  const done = args.pop() as unknown as (result: SerializedQueryResult) => void
-
+): Promise<SerializedQueryResult> {
   function deserializeObject(object: SerializedObject) {
     return Object.entries(object)
       .map<[string, QueryArg]>(([key, value]) => [key, deserializeArg(value)])
-      .reduce((acc, [key, value]) => ({...acc, [key]: value}), {})
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {})
   }
 
   function deserializeArg(arg: SerializedArg): QueryArg {
@@ -148,62 +135,59 @@ function executeQuery(
 
   const [matcher, options, waitForOptions] = args.map(deserializeArg)
 
-  void (async () => {
-    let result: ReturnType<typeof window.TestingLibraryDom[typeof query]> = null
-    try {
-      // Override RegExp to fix 'matcher instanceof RegExp' check on Firefox
-      window.RegExp = RegExp
+  let result: ReturnType<(typeof window.TestingLibraryDom)[typeof query]> = null
+  try {
+    // Override RegExp to fix 'matcher instanceof RegExp' check on Firefox
+    window.RegExp = RegExp
 
-      result = await window.TestingLibraryDom[query](
-        container,
-        matcher as Matcher,
-        options as MatcherOptions,
-        waitForOptions as WaitForOptions,
-      )
-    } catch (e: unknown) {
-      return done((e as Error).message)
+    result = await window.TestingLibraryDom[query](
+      container,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+      matcher as any,
+      options as MatcherOptions,
+      waitForOptions as WaitForOptions,
+    )
+  } catch (e: unknown) {
+    return (e as Error).message
+  }
+
+  if (!result) {
+    return null
+  }
+
+  function makeSelectorResult(element: HTMLElement) {
+    // use simmer if possible to allow element refetching by position, otherwise
+    // situations such as a React key change causes refetching to fail.
+    const selector = window.Simmer(element)
+    if (selector) return { selector }
+
+    // use generated element id as selector if Simmer fails
+    const elementIdAttributeName = 'data-wdio-testing-lib-element-id'
+    let elementId = element.getAttribute(elementIdAttributeName)
+
+    // if id doesn't already exist create one and add it to element
+    if (!elementId) {
+      elementId = (Math.abs(Math.random()) * 1000000000000).toFixed(0)
+      element.setAttribute(elementIdAttributeName, elementId)
     }
 
-    if (!result) {
-      return done(null)
-    }
+    return { selector: `[${elementIdAttributeName}="${elementId}"]` }
+  }
 
-    function makeSelectorResult(element: HTMLElement) {
-      // use simmer if possible to allow element refetching by position, otherwise
-      // situations such as a React key change causes refetching to fail.
-      const selector = window.Simmer(element)
-      if (selector) return {selector}
+  if (Array.isArray(result)) {
+    return result.map(makeSelectorResult)
+  }
 
-      // use generated element id as selector if Simmer fails
-      const elementIdAttributeName = 'data-wdio-testing-lib-element-id'
-      let elementId = element.getAttribute(elementIdAttributeName)
-
-      // if id doesn't already exist create one and add it to element
-      if (!elementId) {
-        elementId = (Math.abs(Math.random()) * 1000000000000).toFixed(0)
-        element.setAttribute(elementIdAttributeName, elementId)
-      }
-
-      return {selector:`[${elementIdAttributeName}="${elementId}"]`}
-    }
-
-    if (Array.isArray(result)) {
-      return done(result.map(makeSelectorResult));
-    }
-
-    return done(makeSelectorResult(result));
-  })()
+  return makeSelectorResult(result)
 }
 
-function createQuery(container: ElementBase, queryName: QueryName) {
+function createQuery(element: WebdriverIO.Element, queryName: QueryName) {
   return async (...args: QueryArg[]) => {
-    await injectDOMTestingLibrary(container)
+    await injectDOMTestingLibrary(element)
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const result: SerializedQueryResult = await findContainerWithExecute(container).executeAsync(
+    const result: SerializedQueryResult = await element.execute(
       executeQuery,
       queryName,
-      container,
       ...args.map(serializeArg),
     )
 
@@ -216,14 +200,14 @@ function createQuery(container: ElementBase, queryName: QueryName) {
     }
 
     if (Array.isArray(result)) {
-      return Promise.all(result.map(({ selector }) => container.$(selector)))
+      return Promise.all(result.map(({ selector }) => element.$(selector)))
     }
 
-    return container.$(result.selector)
+    return element.$(result.selector)
   }
 }
 
-function within(element: ElementBase) {
+function within(element: WebdriverIO.Element) {
   return (Object.keys(baseQueries) as QueryName[]).reduce(
     (queries, queryName) => ({
       ...queries,
@@ -233,13 +217,10 @@ function within(element: ElementBase) {
   ) as WebdriverIOQueries
 }
 
-/*
-eslint-disable
-@typescript-eslint/no-explicit-any,
-@typescript-eslint/no-unsafe-argument
-*/
-function setupBrowser<Browser extends BrowserBase>(browser: Browser): WebdriverIOQueries {
-  const queries: {[key: string | number | symbol]: WebdriverIOQueries[QueryName]} = {}
+function setupBrowser(browser: WebdriverIO.Browser): WebdriverIOQueries {
+  const queries: {
+    [key: string | number | symbol]: WebdriverIOQueries[QueryName]
+  } = {}
 
   Object.keys(baseQueries).forEach((key) => {
     const queryName = key as QueryName
@@ -247,8 +228,9 @@ function setupBrowser<Browser extends BrowserBase>(browser: Browser): WebdriverI
     const query = async (
       ...args: Parameters<WebdriverIOQueries[QueryName]>
     ) => {
-      const body = await browser.$('body')
-      return within(body as ElementBase)[queryName](...(args as any[]))
+      const body = await browser.$('body').getElement()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+      return within(body)[queryName](...(args as any[]))
     }
 
     // add query to response queries
@@ -258,17 +240,22 @@ function setupBrowser<Browser extends BrowserBase>(browser: Browser): WebdriverI
     browser.addCommand(queryName, query as WebdriverIOQueries[QueryName])
     browser.addCommand(
       queryName,
-      function (this, ...args) {
+      function addQueryCommand(this, ...args) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return within(this)[queryName](...args)
       },
       true,
     )
 
     // add chainable query to BrowserObject and Elements
-    browser.addCommand(`${queryName}$`, query as WebdriverIOQueriesChainable<Browser>[`${QueryName}$`])
     browser.addCommand(
       `${queryName}$`,
-      function (this, ...args) {
+      query as unknown as WebdriverIOQueriesChainable<WebdriverIO.Browser>[`${QueryName}$`],
+    )
+    browser.addCommand(
+      `${queryName}$`,
+      function addQueryCommand(this, ...args) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return within(this)[queryName](...args)
       },
       true,
@@ -277,15 +264,10 @@ function setupBrowser<Browser extends BrowserBase>(browser: Browser): WebdriverI
 
   return queries as unknown as WebdriverIOQueries
 }
-/*
-eslint-enable
-@typescript-eslint/no-explicit-any,
-@typescript-eslint/no-unsafe-argument
-*/
 
 function configure(config: Partial<Config>) {
   _config = config
 }
 
 export * from './types'
-export {within, setupBrowser, configure}
+export { within, setupBrowser, configure }

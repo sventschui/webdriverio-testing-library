@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "@wdio/globals/types", "@wdio/mocha-framework"],
+    "baseUrl": ".",
+    "skipLibCheck": true
+  },
+  "exclude": [],
+  "include": ["**/*.ts"]
+}
