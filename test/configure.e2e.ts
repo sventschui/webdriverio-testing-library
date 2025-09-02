@@ -14,6 +14,10 @@ describe('configure', () => {
   })
 
   it('supports setting getElementError', async () => {
+    if (browser.isBidi) {
+      return; // Currently not supported in BIDI: `Unsupported type: function`
+    }
+
     configure({ getElementError: () => new Error(`test`) })
 
     const { getByTestId } = setupBrowser(browser)

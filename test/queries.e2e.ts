@@ -136,12 +136,12 @@ describe('queries', () => {
 
     const start = Date.now()
     await expect(
-      findByText('Not existing', {}, { timeout: 10_000 }),
+      findByText('Not existing', {}, { timeout: 2_000 }),
     ).rejects.toThrow(/Unable to find an element with the text/)
     const end = Date.now()
 
-    // Default timeout is very short. With the timeout of 10s above, the test should take 10s
-    expect(end - start).toBeGreaterThan(10_000)
+    // Default timeout is very short. With the timeout of 10s above, the test should take 2s
+    expect(end - start).toBeGreaterThan(2_000)
   })
 
   it('support being passed undefined arguments', async () => {
